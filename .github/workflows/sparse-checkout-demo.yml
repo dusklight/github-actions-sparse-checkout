@@ -1,0 +1,74 @@
+name: Sparse Checkout Demo
+
+on:
+  # Builds only the main branch for now.  See comments below about "main" being hardcoded if you want to use it on pull requests.
+  # Also note that the build will only be triggered for the folder we're interested in.
+  push:
+    branches: [ main ]
+    paths:
+      - 'blue-folder/project1/**'
+      - .github/workflows/sparse-checkout-demo.yml
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+  
+    steps:
+      - name: Show built-in variables and git version
+        run: |
+          echo "GITHUB_WORKSPACE: $Env:GITHUB_WORKSPACE"
+          echo "GITHUB_SHA: $Env:GITHUB_SHA"
+          echo "GITHUB_REF: $Env:GITHUB_REF"
+          echo "GITHUB_ACTOR: $Env:GITHUB_ACTOR"
+          echo "GITHUB_REPOSITORY: $Env:GITHUB_REPOSITORY"
+          git --version
+      
+      # Next several blocks are for sparse checkout - separated out for illustration purposes, can be combined for production use,
+      # or consider creating a composite step, etc.
+      - name: Git - Initialize repository, add remote, disable garbage collection
+        run: |
+          git init $Env:GITHUB_WORKSPACE
+          git remote add origin https://github.com/$Env:GITHUB_REPOSITORY
+          git config --local gc.auto 0
+    
+      - name: Git - Setup auth extraheaders
+        run: |
+          $authToken="x-access-token:${{ secrets.GITHUB_TOKEN }}"
+          $bytes=[System.Text.Encoding]::UTF8.GetBytes($authToken)
+          $encodedAuthToken=[Convert]::ToBase64String($bytes)
+
+          echo "Auth token: $encodedAuthToken" # Just demonstrating that GitHub will automatically mask encodedAuthToken as well.
+          
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ${encodedAuthToken}"
+
+      # TODO: Currently hardcoded to main.  If using on pull requests, parse the ref to determine the branch name, or use sha.
+      - name: Git - Fetch
+        run: |
+          git -c protocol.version=2 fetch --no-tags --prune --progress --no-recurse-submodules --depth=1 origin +${{github.sha}}:refs/remotes/origin/main
+
+      - name: Git - Enable sparse-checkout (using git >2.25 syntax)
+        run: |
+          git sparse-checkout init
+          git sparse-checkout set blue-folder/project1
+
+      - name: Git - Configure LFS to only fetch selected folder
+        run: |
+          git config lfs.fetchinclude blue-folder/project1
+  
+      # TODO: Currently hardcoded to main.  If using on pull requests, parse the ref to determine the branch name, or use sha.
+      - name: Git - Checkout
+        run: |
+          git checkout --progress --force -B master refs/remotes/origin/main
+      
+      # TODO: Consider using skip-smudge on checkout above.
+      - name: Git - LFS Pull
+        run: |
+          git lfs pull origin
+          
+      - name: Verify sparse checkout by listing out the checked out repo directory
+        shell: cmd
+        run: |
+          echo Only the blue-folder\project1 should be checked out, and for LFS, the large file object from only that folder should be fetched
+          dir /a /b /s
