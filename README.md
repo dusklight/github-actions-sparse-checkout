@@ -1,10 +1,8 @@
-# github-actions-demo
+# github-actions-sparse-checkout
 
-This repo contains some examples of using GitHub Actions.
+This repo contains a GitHub Action that demonstrates sparse checkout.
 
-## Sparse Checkout
-
-![Sparse Checkout Demo](https://github.com/dusklight/github-actions-demo/workflows/Sparse%20Checkout%20Demo/badge.svg?branch=main)
+![Sparse Checkout Demo](https://github.com/dusklight/github-actions-sparse-checkout/workflows/Sparse%20Checkout%20Demo/badge.svg?branch=main)
 
 Refer to this [blog post](https://blog.dusklight.com/2021/01/github-actions-sparse-checkout.html) for more information.
 
